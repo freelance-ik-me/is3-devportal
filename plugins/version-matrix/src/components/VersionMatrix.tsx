@@ -202,7 +202,7 @@ export const VersionMatrix: React.FC = () => {
               const v = await fetchVersion(row.endpoints[env], controller.signal);
               versions[env] = v;
             } catch (err) {
-              versions[env] = 'error';
+              versions[env] = 'N/D';
               if (!controller.signal.aborted) {
                 // log but continue
                 console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
