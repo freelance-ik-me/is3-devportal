@@ -54,5 +54,8 @@
       "prettier --write"
     ]
   },
-  "packageManager": "yarn@4.4.1"
+  "packageManager": "yarn@4.4.1",
+  "dependencies": {
+    "@backstage/plugin-catalog-backend-module-github": "^0.12.0"
+  }
 }

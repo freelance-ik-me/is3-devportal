@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   CircularProgress,
+  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -17,8 +18,9 @@ import {
 } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
 import { makeStyles } from '@material-ui/core/styles';
+import RefreshIcon from '@material-ui/icons/Refresh';
 import { useApi } from '@backstage/core-plugin-api';
-import { catalogApiRef } from '@backstage/plugin-catalog-react';
+import { catalogApiRef, EntityRefLink } from '@backstage/plugin-catalog-react';
 import { Entity } from '@backstage/catalog-model';
 
 const DEFAULT_ENVIRONMENTS = ['CONSO', 'INT', 'PRE', 'PRO'];
@@ -44,6 +46,10 @@ const useStyles = makeStyles(theme => ({
     fontFamily: 'monospace',
     whiteSpace: 'nowrap',
   },
+  actionCell: {
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+  },
 }));
 
 type EndpointMap = Record<string, string>;
@@ -51,6 +57,7 @@ type EndpointMap = Record<string, string>;
 type ComponentRow = {
   name: string;
   title?: string;
+  namespace?: string;
   system?: string;
   endpoints: EndpointMap;
   versions: Record<string, string>;
@@ -144,13 +151,77 @@ const parseEndpoints = (entity: Entity): EndpointMap => {
   return map;
 };
 
-const fetchVersion = async (url: string, signal: AbortSignal): Promise<string> => {
-  const res = await fetch(url, { signal });
-  if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText}`);
+const fetchVersion = async (
+  url: string,
+  signal?: AbortSignal,
+  timeoutMs = 10000,
+): Promise<string> => {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(timeout);
+      throw new Error('TIMEOUT');
+    }
+    signal.addEventListener('abort', onAbort);
   }
-  const text = await res.text();
-  return text.trim();
+
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const text = await res.text();
+    return text.trim();
+  } catch (err) {
+    if ((err as any)?.name === 'AbortError') {
+      throw new Error('TIMEOUT');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+    if (signal) {
+      signal.removeEventListener('abort', onAbort);
+    }
+  }
+};
+
+const fetchRowVersions = async (
+  row: ComponentRow,
+  signal?: AbortSignal,
+): Promise<ComponentRow> => {
+  const envs = Object.keys(row.endpoints);
+  const results = await Promise.allSettled(
+    envs.map(env => fetchVersion(row.endpoints[env], signal as AbortSignal)),
+  );
+
+  const versions: Record<string, string> = {};
+  results.forEach((result, idx) => {
+    const env = envs[idx];
+    if (result.status === 'fulfilled') {
+      versions[env] = result.value;
+    } else {
+      const err = result.reason;
+      if (err instanceof Error) {
+        if (err.message === 'TIMEOUT') {
+          versions[env] = 'TIMEOUT';
+        } else if (err.message.startsWith('HTTP ')) {
+          versions[env] = err.message;
+        } else {
+          versions[env] = 'N/C';
+        }
+      } else {
+        versions[env] = 'N/C';
+      }
+      if (!signal?.aborted) {
+        console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
+      }
+    }
+  });
+
+  return { ...row, versions };
 };
 
 export const VersionMatrix: React.FC = () => {
@@ -161,6 +232,7 @@ export const VersionMatrix: React.FC = () => {
   const [environments, setEnvironments] = useState<string[]>(DEFAULT_ENVIRONMENTS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const controller = new AbortController();
@@ -186,6 +258,7 @@ export const VersionMatrix: React.FC = () => {
           preparedRows.push({
             name: entity.metadata.name,
             title: entity.metadata.title,
+            namespace: entity.metadata.namespace || 'default',
             system: entity.spec?.system as string | undefined,
             endpoints,
             versions: {},
@@ -195,24 +268,9 @@ export const VersionMatrix: React.FC = () => {
         setEnvironments(Array.from(collectedEnvs));
 
         // fetch versions
-        const fetchRowVersions = async (row: ComponentRow) => {
-          const versions: Record<string, string> = {};
-          for (const env of Object.keys(row.endpoints)) {
-            try {
-              const v = await fetchVersion(row.endpoints[env], controller.signal);
-              versions[env] = v;
-            } catch (err) {
-              versions[env] = 'N/D';
-              if (!controller.signal.aborted) {
-                // log but continue
-                console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
-              }
-            }
-          }
-          return { ...row, versions };
-        };
-
-        const resolved = await Promise.all(preparedRows.map(r => fetchRowVersions(r)));
+        const resolved = await Promise.all(
+          preparedRows.map(r => fetchRowVersions(r, controller.signal)),
+        );
         resolved.sort((a, b) => a.name.localeCompare(b.name));
         setAllRows(resolved);
       } catch (err) {
@@ -250,7 +308,76 @@ export const VersionMatrix: React.FC = () => {
     return allRows.filter(row => row.system === selectedSystem);
   }, [allRows, selectedSystem]);
 
-  const columns = useMemo(() => environments, [environments]);
+  const columns = useMemo(() => {
+    // Put LOCAL first, then others in original order
+    const sorted = [...environments];
+    const localIdx = sorted.findIndex(env => env.toUpperCase() === 'LOCAL');
+    if (localIdx > 0) {
+      const [local] = sorted.splice(localIdx, 1);
+      sorted.unshift(local);
+    }
+    return sorted;
+  }, [environments]);
+
+  const handleRefresh = async (row: ComponentRow) => {
+    // mark row as pending and show spinner sentinel per env
+    setAllRows(prev =>
+      prev.map(r =>
+        r.name === row.name
+          ? {
+              ...r,
+              versions: Object.fromEntries(
+                Object.keys(r.endpoints).map(env => [env, '__loading__']),
+              ),
+            }
+          : r,
+      ),
+    );
+
+    setRefreshing(prev => new Set(prev).add(row.name));
+
+    const release = () =>
+      setRefreshing(prev => {
+        const next = new Set(prev);
+        next.delete(row.name);
+        return next;
+      });
+
+    // Disable button for 5s
+    setTimeout(release, 5000);
+
+    // Fetch each environment independently and update as results arrive
+    const envs = Object.keys(row.endpoints);
+    envs.forEach(async env => {
+      try {
+        const version = await fetchVersion(row.endpoints[env]);
+        setAllRows(prev =>
+          prev.map(r =>
+            r.name === row.name
+              ? { ...r, versions: { ...r.versions, [env]: version } }
+              : r,
+          ),
+        );
+      } catch (err) {
+        let errorValue = 'N/C';
+        if (err instanceof Error) {
+          if (err.message === 'TIMEOUT') {
+            errorValue = 'TIMEOUT';
+          } else if (err.message.startsWith('HTTP ')) {
+            errorValue = err.message;
+          }
+        }
+        setAllRows(prev =>
+          prev.map(r =>
+            r.name === row.name
+              ? { ...r, versions: { ...r.versions, [env]: errorValue } }
+              : r,
+          ),
+        );
+        console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
+      }
+    });
+  };
 
   if (loading) {
     return (
@@ -306,22 +433,52 @@ export const VersionMatrix: React.FC = () => {
                   {env}
                 </TableCell>
               ))}
+              <TableCell className={classes.headerCell}>Acción</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredRows.map((row: ComponentRow) => (
               <TableRow key={row.name}>
                 <TableCell className={classes.componentCell}>
-                  <div>{row.title || row.name}</div>
-                  <Typography variant="caption" color="textSecondary">
-                    {row.name}
-                  </Typography>
+                  <div>
+                    <EntityRefLink
+                      entityRef={{
+                        kind: 'Component',
+                        name: row.name,
+                        namespace: row.namespace || 'default',
+                      }}
+                      title={row.title || row.name}
+                    />
+                  </div>
+                  <div>
+                    <Typography variant="caption" color="textSecondary">
+                      {row.namespace && row.namespace !== 'default'
+                        ? `${row.namespace}/${row.name}`
+                        : row.name}
+                    </Typography>
+                  </div>
                 </TableCell>
                 {columns.map(env => (
                   <TableCell key={`${row.name}-${env}`} className={classes.versionCell}>
-                    {row.versions[env] ?? '-'}
+                    {row.versions[env] === '__loading__' ? (
+                      <CircularProgress size={14} thickness={5} />
+                    ) : row.versions[env] === 'TIMEOUT' ? (
+                      '⌛'
+                    ) : (
+                      row.versions[env] ?? '-'
+                    )}
                   </TableCell>
                 ))}
+                <TableCell className={classes.actionCell}>
+                  <IconButton
+                    aria-label="Refrescar"
+                    onClick={() => handleRefresh(row)}
+                    disabled={refreshing.has(row.name)}
+                    size="small"
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -77,22 +77,14 @@ catalog:
     pullRequestBranchName: backstage-integration
   rules:
     - allow: [Component, System, API, Resource, Location, Template, Group, User, API-Contract, Domain]
-  locations:
-    # Local example data, file locations are relative to the backend process, typically `packages/backend`
-    - type: file
-      target: ../../examples/entities.yaml
-
-    # Local example template
-    - type: file
-      target: ../../examples/template/template.yaml
-      rules:
-        - allow: [Template]
-
-    # Local example organizational data
-    - type: file
-      target: ../../examples/org.yaml
-      rules:
-        - allow: [User, Group]
+  providers:
+    github:
+      IS3:
+        organization: freelance-ik-me
+        schedule:
+          initialDelay: { seconds: 10 }
+          frequency: { minutes: 15 }
+          timeout: { minutes: 3 }
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
@@ -101,3 +93,11 @@ kubernetes:
 permission:
   # setting this to `false` will disable permissions
   enabled: true
+
+logger:
+  level: info
+  loggers:
+    - name: 'backstage.plugins.catalog'
+      level: debug
+    - name: '@backstage/plugin-catalog-backend'
+      level: debug
