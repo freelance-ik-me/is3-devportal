@@ -202,7 +202,6 @@ export const VersionMatrix: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
-  const [initializing, setInitializing] = useState<Set<string>>(new Set());
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set());
 
   // Load cached versions from localStorage
@@ -231,8 +230,6 @@ export const VersionMatrix: React.FC = () => {
   };
 
   useEffect(() => {
-    const controller = new AbortController();
-
     const load = async () => {
       try {
         setLoading(true);
@@ -269,70 +266,13 @@ export const VersionMatrix: React.FC = () => {
         // Render immediately with cached versions
         setAllRows(preparedRows);
         setLoading(false);
-
-        // Mark all rows as initializing
-        setInitializing(new Set(preparedRows.map(r => r.name)));
-
-        // Fetch versions in background and update as they arrive
-        preparedRows.forEach(row => {
-          const envs = Object.keys(row.endpoints);
-          let completedCount = 0;
-
-          envs.forEach(async env => {
-            try {
-              const version = await fetchVersion(row.endpoints[env]);
-              setAllRows(prev => {
-                const updated = prev.map(r => {
-                  if (r.name === row.name) {
-                    return { ...r, versions: { ...r.versions, [env]: version } };
-                  }
-                  return r;
-                });
-                saveCachedVersions(updated);
-                return updated;
-              });
-            } catch (err) {
-              let errorValue = 'N/C';
-              if (err instanceof Error) {
-                if (err.message === 'TIMEOUT') {
-                  errorValue = 'TIMEOUT';
-                } else if (err.message.startsWith('HTTP ')) {
-                  errorValue = err.message;
-                }
-              }
-              setAllRows(prev =>
-                prev.map(r =>
-                  r.name === row.name
-                    ? { ...r, versions: { ...r.versions, [env]: errorValue } }
-                    : r,
-                ),
-              );
-              if (!controller.signal.aborted) {
-                console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
-              }
-            } finally {
-              completedCount++;
-              // Mark row as done initializing when all environments have completed
-              if (completedCount === envs.length && !controller.signal.aborted) {
-                setInitializing(prev => {
-                  const next = new Set(prev);
-                  next.delete(row.name);
-                  return next;
-                });
-              }
-            }
-          });
-        });
       } catch (err) {
-        if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Failed to load versions');
-          setLoading(false);
-        }
+        setError(err instanceof Error ? err.message : 'Failed to load entities');
+        setLoading(false);
       }
     };
 
     load();
-    return () => controller.abort();
   }, [catalogApi]);
 
   const systems = useMemo(() => {
@@ -438,6 +378,16 @@ export const VersionMatrix: React.FC = () => {
     });
   };
 
+  const handleSelectAll = () => {
+    if (checkedRows.size === filteredRows.length) {
+      // Deselect all
+      setCheckedRows(new Set());
+    } else {
+      // Select all
+      setCheckedRows(new Set(filteredRows.map(r => r.name)));
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight={240}>
@@ -501,7 +451,14 @@ export const VersionMatrix: React.FC = () => {
                   {env}
                 </TableCell>
               ))}
-              <TableCell className={classes.headerCell}>Estado</TableCell>
+              <TableCell className={classes.headerCell} style={{ textAlign: 'center' }}>
+                <Checkbox
+                  checked={filteredRows.length > 0 && checkedRows.size === filteredRows.length}
+                  indeterminate={checkedRows.size > 0 && checkedRows.size < filteredRows.length}
+                  onChange={handleSelectAll}
+                  size="small"
+                />
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -546,7 +503,7 @@ export const VersionMatrix: React.FC = () => {
                   );
                 })}
                 <TableCell className={classes.actionCell}>
-                  {initializing.has(row.name) || refreshing.has(row.name) ? (
+                  {refreshing.has(row.name) ? (
                     <CircularProgress size={24} thickness={5} />
                   ) : (
                     <Checkbox
