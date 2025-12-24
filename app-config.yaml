@@ -82,9 +82,9 @@ catalog:
       IS3:
         organization: freelance-ik-me
         schedule:
-          initialDelay: { seconds: 10 }
-          frequency: { minutes: 15 }
-          timeout: { minutes: 3 }
+          initialDelay: { seconds: 5 }
+          frequency: { minutes: 5 }
+          timeout: { minutes: 2 }
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
