@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   CircularProgress,
-  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -15,6 +14,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Checkbox,
+  Button,
 } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
 import { makeStyles } from '@material-ui/core/styles';
@@ -45,6 +46,8 @@ const useStyles = makeStyles(theme => ({
     textAlign: 'center',
     fontFamily: 'monospace',
     whiteSpace: 'nowrap',
+    width: '180px',
+    minWidth: '180px',
   },
   actionCell: {
     textAlign: 'center',
@@ -62,6 +65,8 @@ type ComponentRow = {
   endpoints: EndpointMap;
   versions: Record<string, string>;
 };
+
+
 
 const parseEndpoints = (entity: Entity): EndpointMap => {
   const annotations = entity.metadata.annotations || {};
@@ -188,42 +193,6 @@ const fetchVersion = async (
   }
 };
 
-const fetchRowVersions = async (
-  row: ComponentRow,
-  signal?: AbortSignal,
-): Promise<ComponentRow> => {
-  const envs = Object.keys(row.endpoints);
-  const results = await Promise.allSettled(
-    envs.map(env => fetchVersion(row.endpoints[env], signal as AbortSignal)),
-  );
-
-  const versions: Record<string, string> = {};
-  results.forEach((result, idx) => {
-    const env = envs[idx];
-    if (result.status === 'fulfilled') {
-      versions[env] = result.value;
-    } else {
-      const err = result.reason;
-      if (err instanceof Error) {
-        if (err.message === 'TIMEOUT') {
-          versions[env] = 'TIMEOUT';
-        } else if (err.message.startsWith('HTTP ')) {
-          versions[env] = err.message;
-        } else {
-          versions[env] = 'N/C';
-        }
-      } else {
-        versions[env] = 'N/C';
-      }
-      if (!signal?.aborted) {
-        console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
-      }
-    }
-  });
-
-  return { ...row, versions };
-};
-
 export const VersionMatrix: React.FC = () => {
   const classes = useStyles();
   const catalogApi = useApi(catalogApiRef);
@@ -233,6 +202,33 @@ export const VersionMatrix: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
+  const [initializing, setInitializing] = useState<Set<string>>(new Set());
+  const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set());
+
+  // Load cached versions from localStorage
+  const loadCachedVersions = (): Record<string, Record<string, string>> => {
+    try {
+      const cached = localStorage.getItem('version-matrix-cache');
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  // Save versions to localStorage
+  const saveCachedVersions = (rows: ComponentRow[]) => {
+    try {
+      const cache: Record<string, Record<string, string>> = {};
+      rows.forEach(row => {
+        if (Object.keys(row.versions).length > 0) {
+          cache[row.name] = row.versions;
+        }
+      });
+      localStorage.setItem('version-matrix-cache', JSON.stringify(cache));
+    } catch {
+      // Silently fail if localStorage is not available
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -241,6 +237,8 @@ export const VersionMatrix: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
+
+        const cachedVersions = loadCachedVersions();
 
         const entities = await catalogApi.getEntities({
           filter: { kind: 'Component' },
@@ -261,24 +259,73 @@ export const VersionMatrix: React.FC = () => {
             namespace: entity.metadata.namespace || 'default',
             system: entity.spec?.system as string | undefined,
             endpoints,
-            versions: {},
+            versions: cachedVersions[entity.metadata.name] || {},
           });
         }
 
+        preparedRows.sort((a, b) => a.name.localeCompare(b.name));
         setEnvironments(Array.from(collectedEnvs));
 
-        // fetch versions
-        const resolved = await Promise.all(
-          preparedRows.map(r => fetchRowVersions(r, controller.signal)),
-        );
-        resolved.sort((a, b) => a.name.localeCompare(b.name));
-        setAllRows(resolved);
+        // Render immediately with cached versions
+        setAllRows(preparedRows);
+        setLoading(false);
+
+        // Mark all rows as initializing
+        setInitializing(new Set(preparedRows.map(r => r.name)));
+
+        // Fetch versions in background and update as they arrive
+        preparedRows.forEach(row => {
+          const envs = Object.keys(row.endpoints);
+          let completedCount = 0;
+
+          envs.forEach(async env => {
+            try {
+              const version = await fetchVersion(row.endpoints[env]);
+              setAllRows(prev => {
+                const updated = prev.map(r => {
+                  if (r.name === row.name) {
+                    return { ...r, versions: { ...r.versions, [env]: version } };
+                  }
+                  return r;
+                });
+                saveCachedVersions(updated);
+                return updated;
+              });
+            } catch (err) {
+              let errorValue = 'N/C';
+              if (err instanceof Error) {
+                if (err.message === 'TIMEOUT') {
+                  errorValue = 'TIMEOUT';
+                } else if (err.message.startsWith('HTTP ')) {
+                  errorValue = err.message;
+                }
+              }
+              setAllRows(prev =>
+                prev.map(r =>
+                  r.name === row.name
+                    ? { ...r, versions: { ...r.versions, [env]: errorValue } }
+                    : r,
+                ),
+              );
+              if (!controller.signal.aborted) {
+                console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
+              }
+            } finally {
+              completedCount++;
+              // Mark row as done initializing when all environments have completed
+              if (completedCount === envs.length && !controller.signal.aborted) {
+                setInitializing(prev => {
+                  const next = new Set(prev);
+                  next.delete(row.name);
+                  return next;
+                });
+              }
+            }
+          });
+        });
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(err instanceof Error ? err.message : 'Failed to load versions');
-        }
-      } finally {
-        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
@@ -320,44 +367,25 @@ export const VersionMatrix: React.FC = () => {
   }, [environments]);
 
   const handleRefresh = async (row: ComponentRow) => {
-    // mark row as pending and show spinner sentinel per env
-    setAllRows(prev =>
-      prev.map(r =>
-        r.name === row.name
-          ? {
-              ...r,
-              versions: Object.fromEntries(
-                Object.keys(r.endpoints).map(env => [env, '__loading__']),
-              ),
-            }
-          : r,
-      ),
-    );
-
     setRefreshing(prev => new Set(prev).add(row.name));
-
-    const release = () =>
-      setRefreshing(prev => {
-        const next = new Set(prev);
-        next.delete(row.name);
-        return next;
-      });
-
-    // Disable button for 5s
-    setTimeout(release, 5000);
 
     // Fetch each environment independently and update as results arrive
     const envs = Object.keys(row.endpoints);
+    let completedCount = 0;
+
     envs.forEach(async env => {
       try {
         const version = await fetchVersion(row.endpoints[env]);
-        setAllRows(prev =>
-          prev.map(r =>
-            r.name === row.name
-              ? { ...r, versions: { ...r.versions, [env]: version } }
-              : r,
-          ),
-        );
+        setAllRows(prev => {
+          const updated = prev.map(r => {
+            if (r.name === row.name) {
+              return { ...r, versions: { ...r.versions, [env]: version } };
+            }
+            return r;
+          });
+          saveCachedVersions(updated);
+          return updated;
+        });
       } catch (err) {
         let errorValue = 'N/C';
         if (err instanceof Error) {
@@ -375,7 +403,38 @@ export const VersionMatrix: React.FC = () => {
           ),
         );
         console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
+      } finally {
+        completedCount++;
+        // Release the button when all environments have completed
+        if (completedCount === envs.length) {
+          setRefreshing(prev => {
+            const next = new Set(prev);
+            next.delete(row.name);
+            return next;
+          });
+        }
       }
+    });
+  };
+
+  const handleGlobalRefresh = () => {
+    if (checkedRows.size === 0) return;
+    
+    const rowsToRefresh = allRows.filter(r => checkedRows.has(r.name));
+    rowsToRefresh.forEach(row => {
+      handleRefresh(row);
+    });
+  };
+
+  const handleCheckboxChange = (rowName: string) => {
+    setCheckedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(rowName)) {
+        next.delete(rowName);
+      } else {
+        next.add(rowName);
+      }
+      return next;
     });
   };
 
@@ -422,6 +481,15 @@ export const VersionMatrix: React.FC = () => {
         <Typography variant="caption" color="textSecondary">
           {filteredRows.length} component(s)
         </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<RefreshIcon />}
+          onClick={handleGlobalRefresh}
+          disabled={checkedRows.size === 0}
+        >
+          Refresh Selected
+        </Button>
       </Box>
       <TableContainer component={Paper} className={classes.tableContainer}>
         <Table size="small">
@@ -433,7 +501,7 @@ export const VersionMatrix: React.FC = () => {
                   {env}
                 </TableCell>
               ))}
-              <TableCell className={classes.headerCell}>Acción</TableCell>
+              <TableCell className={classes.headerCell}>Estado</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -458,26 +526,35 @@ export const VersionMatrix: React.FC = () => {
                     </Typography>
                   </div>
                 </TableCell>
-                {columns.map(env => (
-                  <TableCell key={`${row.name}-${env}`} className={classes.versionCell}>
-                    {row.versions[env] === '__loading__' ? (
-                      <CircularProgress size={14} thickness={5} />
-                    ) : row.versions[env] === 'TIMEOUT' ? (
-                      '⌛'
-                    ) : (
-                      row.versions[env] ?? '-'
-                    )}
-                  </TableCell>
-                ))}
+                {columns.map(env => {
+                  const cellKey = `${row.name}-${env}`;
+                  const currentVersion = row.versions[env];
+                  
+                  return (
+                    <TableCell 
+                      key={cellKey}
+                      className={classes.versionCell}
+                    >
+                      {currentVersion === 'TIMEOUT' ? (
+                        'TIMEOUT'
+                      ) : currentVersion ? (
+                        currentVersion
+                      ) : (
+                        'N/C'
+                      )}
+                    </TableCell>
+                  );
+                })}
                 <TableCell className={classes.actionCell}>
-                  <IconButton
-                    aria-label="Refrescar"
-                    onClick={() => handleRefresh(row)}
-                    disabled={refreshing.has(row.name)}
-                    size="small"
-                  >
-                    <RefreshIcon fontSize="small" />
-                  </IconButton>
+                  {initializing.has(row.name) || refreshing.has(row.name) ? (
+                    <CircularProgress size={24} thickness={5} />
+                  ) : (
+                    <Checkbox
+                      checked={checkedRows.has(row.name)}
+                      onChange={() => handleCheckboxChange(row.name)}
+                      size="small"
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ))}
