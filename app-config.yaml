@@ -62,6 +62,13 @@ techdocs:
   publisher:
     type: 'local' # Alternatives - 'googleGcs' or 'awsS3'. Read documentation for using alternatives.
 
+search:
+  backend:
+    implementation: lunr
+    schedule:
+      frequency: { minutes: 5 }
+      initialDelay: { minutes: 1 }
+
 auth:
   # see https://backstage.io/docs/auth/ to learn about auth providers
   providers:
@@ -82,7 +89,7 @@ catalog:
       IS3:
         organization: freelance-ik-me
         schedule:
-          initialDelay: { seconds: 5 }
+          initialDelay: { seconds: 0 }
           frequency: { minutes: 5 }
           timeout: { minutes: 2 }
 
