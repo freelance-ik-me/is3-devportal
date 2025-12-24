@@ -49,9 +49,25 @@ const useStyles = makeStyles(theme => ({
     width: '180px',
     minWidth: '180px',
   },
+  versionCellChanging: {
+    textAlign: 'center',
+    fontFamily: 'monospace',
+    whiteSpace: 'nowrap',
+    width: '180px',
+    minWidth: '180px',
+    animation: '$cellFlash 1s ease-in-out',
+  },
   actionCell: {
     textAlign: 'center',
     whiteSpace: 'nowrap',
+  },
+  '@keyframes cellFlash': {
+    '0%': {
+      backgroundColor: theme.palette.secondary.light,
+    },
+    '100%': {
+      backgroundColor: 'transparent',
+    },
   },
 }));
 
@@ -203,6 +219,7 @@ export const VersionMatrix: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set());
+  const [changedCells, setChangedCells] = useState<Set<string>>(new Set());
 
   // Load cached versions from localStorage
   const loadCachedVersions = (): Record<string, Record<string, string>> => {
@@ -306,6 +323,19 @@ export const VersionMatrix: React.FC = () => {
     return sorted;
   }, [environments]);
 
+  const markCellAsChanged = (rowName: string, env: string) => {
+    const cellKey = `${rowName}-${env}`;
+    setChangedCells(prevSet => new Set(prevSet).add(cellKey));
+    // Clear animation after it completes (1000ms to match animation duration)
+    setTimeout(() => {
+      setChangedCells(prevSet => {
+        const next = new Set(prevSet);
+        next.delete(cellKey);
+        return next;
+      });
+    }, 1000);
+  };
+
   const handleRefresh = async (row: ComponentRow) => {
     setRefreshing(prev => new Set(prev).add(row.name));
 
@@ -319,6 +349,11 @@ export const VersionMatrix: React.FC = () => {
         setAllRows(prev => {
           const updated = prev.map(r => {
             if (r.name === row.name) {
+              const oldVersion = r.versions[env];
+              // Mark cell as changed if version differs
+              if (oldVersion && oldVersion !== version) {
+                markCellAsChanged(row.name, env);
+              }
               return { ...r, versions: { ...r.versions, [env]: version } };
             }
             return r;
@@ -335,13 +370,21 @@ export const VersionMatrix: React.FC = () => {
             errorValue = err.message;
           }
         }
-        setAllRows(prev =>
-          prev.map(r =>
-            r.name === row.name
-              ? { ...r, versions: { ...r.versions, [env]: errorValue } }
-              : r,
-          ),
-        );
+        setAllRows(prev => {
+          const updated = prev.map(r => {
+            if (r.name === row.name) {
+              const oldVersion = r.versions[env];
+              // Mark cell as changed even for errors
+              if (oldVersion && oldVersion !== errorValue) {
+                markCellAsChanged(row.name, env);
+              }
+              return { ...r, versions: { ...r.versions, [env]: errorValue } };
+            }
+            return r;
+          });
+          saveCachedVersions(updated);
+          return updated;
+        });
         console.warn(`Version fetch failed for ${row.name}/${env}:`, err);
       } finally {
         completedCount++;
@@ -438,7 +481,7 @@ export const VersionMatrix: React.FC = () => {
           onClick={handleGlobalRefresh}
           disabled={checkedRows.size === 0}
         >
-          Refresh Selected
+          Refrescar
         </Button>
       </Box>
       <TableContainer component={Paper} className={classes.tableContainer}>
@@ -486,11 +529,12 @@ export const VersionMatrix: React.FC = () => {
                 {columns.map(env => {
                   const cellKey = `${row.name}-${env}`;
                   const currentVersion = row.versions[env];
+                  const isChanged = changedCells.has(cellKey);
                   
                   return (
                     <TableCell 
                       key={cellKey}
-                      className={classes.versionCell}
+                      className={isChanged ? classes.versionCellChanging : classes.versionCell}
                     >
                       {currentVersion === 'TIMEOUT' ? (
                         'TIMEOUT'
