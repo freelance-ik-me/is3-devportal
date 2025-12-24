@@ -4,9 +4,9 @@ import { VersionMatrix } from './VersionMatrix';
 
 export const VersionMatrixPage: React.FC = () => (
   <Page themeId="tool">
-    <Header title="Version Matrix" subtitle="Component versions por entorno" />
+    <Header title="Versiones" subtitle="Componentes por entorno" />
     <Content>
-      <ContentHeader title="Versiones desplegadas" />
+      <ContentHeader title="Componentes desplegados" />
       <VersionMatrix />
     </Content>
   </Page>

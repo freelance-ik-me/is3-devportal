@@ -28,8 +28,13 @@ backend:
   # This is for local development only, it is not recommended to use this in production
   # The production database configuration is stored in app-config.production.yaml
   database:
-    client: better-sqlite3
-    connection: ':memory:'
+    client: pg
+    connection:
+      host: localhost
+      port: 5432
+      user: backstage
+      password: backstage
+      database: backstage
   # workingDirectory: /tmp # Use this to configure a working directory for the scaffolder, defaults to the OS temp-dir
 
 integrations:
@@ -64,7 +69,7 @@ techdocs:
 
 search:
   backend:
-    implementation: lunr
+    implementation: pg
     schedule:
       frequency: { minutes: 5 }
       initialDelay: { minutes: 1 }

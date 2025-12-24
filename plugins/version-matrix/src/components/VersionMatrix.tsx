@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   CircularProgress,
@@ -39,7 +39,6 @@ const useStyles = makeStyles(theme => ({
   },
   componentCell: {
     fontWeight: 'bold',
-    background: theme.palette.background.paper,
     color: theme.palette.text.primary,
   },
   versionCell: {
@@ -48,6 +47,7 @@ const useStyles = makeStyles(theme => ({
     whiteSpace: 'nowrap',
     width: '180px',
     minWidth: '180px',
+    fontSize: '1rem',
   },
   versionCellChanging: {
     textAlign: 'center',
@@ -55,11 +55,20 @@ const useStyles = makeStyles(theme => ({
     whiteSpace: 'nowrap',
     width: '180px',
     minWidth: '180px',
+    fontSize: '1rem',
     animation: '$cellFlash 1s ease-in-out',
   },
   actionCell: {
     textAlign: 'center',
     whiteSpace: 'nowrap',
+  },
+  errorText: {
+    fontWeight: 'bold',
+    color: theme.palette.error.main,
+  },
+  timeoutText: {
+    fontWeight: 'bold',
+    color: theme.palette.warning.main,
   },
   '@keyframes cellFlash': {
     '0%': {
@@ -76,6 +85,7 @@ type EndpointMap = Record<string, string>;
 type ComponentRow = {
   name: string;
   title?: string;
+  description?: string;
   namespace?: string;
   system?: string;
   endpoints: EndpointMap;
@@ -220,6 +230,7 @@ export const VersionMatrix: React.FC = () => {
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set());
   const [changedCells, setChangedCells] = useState<Set<string>>(new Set());
+  const isInitialLoad = useRef(true);
 
   // Load cached versions from localStorage
   const loadCachedVersions = (): Record<string, Record<string, string>> => {
@@ -270,6 +281,7 @@ export const VersionMatrix: React.FC = () => {
           preparedRows.push({
             name: entity.metadata.name,
             title: entity.metadata.title,
+            description: entity.metadata.description,
             namespace: entity.metadata.namespace || 'default',
             system: entity.spec?.system as string | undefined,
             endpoints,
@@ -300,17 +312,23 @@ export const VersionMatrix: React.FC = () => {
     return Array.from(uniqueSystems).sort();
   }, [allRows]);
 
-  // Auto-select first system when data loads
+  // Auto-select first system only on initial load
   useEffect(() => {
-    if (systems.length > 0 && selectedSystem === 'all') {
+    if (isInitialLoad.current && systems.length > 0 && selectedSystem === 'all') {
       setSelectedSystem(systems[0]);
+      isInitialLoad.current = false;
     }
-  }, [systems, selectedSystem]);
+  }, [systems]);
 
   const filteredRows = useMemo(() => {
     if (selectedSystem === 'all') return allRows;
     return allRows.filter(row => row.system === selectedSystem);
   }, [allRows, selectedSystem]);
+
+  // Clear checked rows when selectedSystem changes (not when data updates)
+  useEffect(() => {
+    setCheckedRows(new Set());
+  }, [selectedSystem]);
 
   const columns = useMemo(() => {
     // Put LOCAL first, then others in original order
@@ -350,8 +368,8 @@ export const VersionMatrix: React.FC = () => {
           const updated = prev.map(r => {
             if (r.name === row.name) {
               const oldVersion = r.versions[env];
-              // Mark cell as changed if version differs
-              if (oldVersion && oldVersion !== version) {
+              // Mark cell as changed if version differs (including from empty/undefined)
+              if (oldVersion !== version) {
                 markCellAsChanged(row.name, env);
               }
               return { ...r, versions: { ...r.versions, [env]: version } };
@@ -374,8 +392,8 @@ export const VersionMatrix: React.FC = () => {
           const updated = prev.map(r => {
             if (r.name === row.name) {
               const oldVersion = r.versions[env];
-              // Mark cell as changed even for errors
-              if (oldVersion && oldVersion !== errorValue) {
+              // Mark cell as changed even for errors (including from empty/undefined)
+              if (oldVersion !== errorValue) {
                 markCellAsChanged(row.name, env);
               }
               return { ...r, versions: { ...r.versions, [env]: errorValue } };
@@ -518,11 +536,16 @@ export const VersionMatrix: React.FC = () => {
                       title={row.title || row.name}
                     />
                   </div>
+                  {row.description && (
+                    <div>
+                      <Typography variant="caption" color="textSecondary">
+                        {row.description}
+                      </Typography>
+                    </div>
+                  )}
                   <div>
                     <Typography variant="caption" color="textSecondary">
-                      {row.namespace && row.namespace !== 'default'
-                        ? `${row.namespace}/${row.name}`
-                        : row.name}
+                      {row.system}
                     </Typography>
                   </div>
                 </TableCell>
@@ -537,7 +560,11 @@ export const VersionMatrix: React.FC = () => {
                       className={isChanged ? classes.versionCellChanging : classes.versionCell}
                     >
                       {currentVersion === 'TIMEOUT' ? (
-                        'TIMEOUT'
+                        <span className={classes.timeoutText}>TIMEOUT</span>
+                      ) : currentVersion?.startsWith('HTTP ') ? (
+                        <span className={classes.errorText}>{currentVersion}</span>
+                      ) : currentVersion === 'N/C' ? (
+                        'N/C'
                       ) : currentVersion ? (
                         currentVersion
                       ) : (
