@@ -36,6 +36,9 @@ backend:
       password: backstage
       database: backstage
   # workingDirectory: /tmp # Use this to configure a working directory for the scaffolder, defaults to the OS temp-dir
+  reading:
+    allow:
+      - host: 2700-is3.conso.com
 
 integrations:
   github:
@@ -95,8 +98,10 @@ catalog:
         organization: freelance-ik-me
         schedule:
           initialDelay: { seconds: 0 }
-          frequency: { minutes: 5 }
+          frequency: { minutes: 30 }
           timeout: { minutes: 2 }
+  orphanStrategy: delete
+  orphanProviderStrategy: delete
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
