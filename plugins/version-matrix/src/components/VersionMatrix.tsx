@@ -44,18 +44,24 @@ const useStyles = makeStyles(theme => ({
   versionCell: {
     textAlign: 'center',
     fontFamily: 'monospace',
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal',
     width: '180px',
     minWidth: '180px',
+    maxWidth: '180px',
     fontSize: '1rem',
+    wordBreak: 'break-word',
+    lineHeight: '1.2',
   },
   versionCellChanging: {
     textAlign: 'center',
     fontFamily: 'monospace',
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal',
     width: '180px',
     minWidth: '180px',
+    maxWidth: '180px',
     fontSize: '1rem',
+    wordBreak: 'break-word',
+    lineHeight: '1.2',
     animation: '$cellFlash 1s ease-in-out',
   },
   actionCell: {
@@ -204,8 +210,11 @@ const fetchVersion = async (
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
+    if (res.headers.get('content-type')?.includes('text/html')) {
+      return 'N/C';
+    }
     const text = await res.text();
-    return text.trim();
+    return text.trim().replaceAll(/\s+/g, '\n');
   } catch (err) {
     if ((err as any)?.name === 'AbortError') {
       throw new Error('TIMEOUT');
@@ -506,12 +515,6 @@ export const VersionMatrix: React.FC = () => {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell className={classes.headerCell}>Componente</TableCell>
-              {columns.map(env => (
-                <TableCell key={env} className={classes.headerCell}>
-                  {env}
-                </TableCell>
-              ))}
               <TableCell className={classes.headerCell} style={{ textAlign: 'center' }}>
                 <Checkbox
                   checked={filteredRows.length > 0 && checkedRows.size === filteredRows.length}
@@ -520,11 +523,28 @@ export const VersionMatrix: React.FC = () => {
                   size="small"
                 />
               </TableCell>
+              <TableCell className={classes.headerCell}>Componente</TableCell>
+              {columns.map(env => (
+                <TableCell key={env} className={classes.headerCell}>
+                  {env}
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredRows.map((row: ComponentRow) => (
               <TableRow key={row.name}>
+                <TableCell className={classes.actionCell}>
+                  {refreshing.has(row.name) ? (
+                    <CircularProgress size={24} thickness={5} />
+                  ) : (
+                    <Checkbox
+                      checked={checkedRows.has(row.name)}
+                      onChange={() => handleCheckboxChange(row.name)}
+                      size="small"
+                    />
+                  )}
+                </TableCell>
                 <TableCell className={classes.componentCell}>
                   <div>
                     <EntityRefLink
@@ -573,17 +593,6 @@ export const VersionMatrix: React.FC = () => {
                     </TableCell>
                   );
                 })}
-                <TableCell className={classes.actionCell}>
-                  {refreshing.has(row.name) ? (
-                    <CircularProgress size={24} thickness={5} />
-                  ) : (
-                    <Checkbox
-                      checked={checkedRows.has(row.name)}
-                      onChange={() => handleCheckboxChange(row.name)}
-                      size="small"
-                    />
-                  )}
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>

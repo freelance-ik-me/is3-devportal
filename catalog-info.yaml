@@ -116,48 +116,6 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: wifis-validator
-  description: NUEVO VALIDADOR WIFIS
-  tags:
-    - java
-    - service
-  annotations:
-    backstage.io/techdocs-ref: dir:.
-    is3-devportal/version-local: ""
-    is3-devportal/version-conso: ""
-    is3-devportal/version-int: ""
-    is3-devportal/version-pre: ""
-    is3-devportal/version-pro: ""
-spec:
-  type: service
-  lifecycle: production
-  owner: is3dev
-  system: is3
----
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: saml-validator
-  description: NUEVO VALIDADOR SAML
-  tags:
-    - java
-    - service
-  annotations:
-    backstage.io/techdocs-ref: dir:.
-    is3-devportal/version-local: ""
-    is3-devportal/version-conso: ""
-    is3-devportal/version-int: ""
-    is3-devportal/version-pre: ""
-    is3-devportal/version-pro: ""
-spec:
-  type: service
-  lifecycle: production
-  owner: is3dev
-  system: is3
----
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
   name: mra-backend
   description: NUEVO MRA BACK - Motor de Regles
   tags:
