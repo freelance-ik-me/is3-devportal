@@ -67,6 +67,7 @@ const useStyles = makeStyles(theme => ({
   actionCell: {
     textAlign: 'center',
     whiteSpace: 'nowrap',
+    width: '10px'
   },
   errorText: {
     fontWeight: 'bold',

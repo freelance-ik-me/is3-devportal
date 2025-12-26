@@ -17,13 +17,13 @@ apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
   name: tap-api
-  description: Backend API of TAP
+  description: API for Acces Aplicacions
 spec:
   type: openapi
   lifecycle: production
   owner: is3dev
   definition:
-    $text: https://github.com/freelance-ik-me/tap-backend/edit/main/petstore.yaml
+    $text: http://2700-is3.conso.com/AccesAplicacions/api/v3/api-docs
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -34,7 +34,7 @@ metadata:
     - java
     - service
   annotations:
-    backstage.io/techdocs-ref: dir:.
+    backstage.io/techdocs-ref: dir:docs/tap-backend
     is3-devportal/version-local: "http://localhost:8082/AccesAplicacions/api/test/version"
     is3-devportal/version-conso: "http://2700-is3.conso.com/AccesAplicacions/api/test/version"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/AccesAplicacions/api/test/version"
@@ -47,8 +47,6 @@ spec:
   system: is3
   providesApis:
     - tap-api
-  dependsOn:
-    - resource:is3database
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -57,19 +55,32 @@ metadata:
   description: NUEVO TAP FRONT - Acces aplicacions
   tags:
     - javascript
-    - service
+    - react
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: ""
     is3-devportal/version-conso: "https://2700-is3.conso.com/AccesAplicacions/version"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/AccesAplicacions/version"
     is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/AccesAplicacions/version"
     is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/AccesAplicacions/version"
 spec:
-  type: service
+  type: website
   lifecycle: production
   owner: is3dev
   system: is3
+  consumesApis:
+    - tap-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: tsp-api
+  description: API for Monitor Test
+spec:
+  type: openapi
+  lifecycle: production
+  owner: is3dev
+  definition:
+    $text: http://2700-is3.conso.com/MonitorTest/api/v3/api-docs
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -80,7 +91,6 @@ metadata:
     - java
     - service
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: "http://localhost:8083/MonitorTest/api/test/version"
     is3-devportal/version-conso: "http://2700-is3.conso.com/MonitorTest/api/test/version"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/MonitorTest/api/test/version"
@@ -91,6 +101,8 @@ spec:
   lifecycle: production
   owner: is3dev
   system: is3
+  providesApis:
+    - tsp-api
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -99,19 +111,32 @@ metadata:
   description: NUEVO TSP FRONT - Monitor Test
   tags:
     - javascript
-    - service
+    - react
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: ""
     is3-devportal/version-conso: "https://2700-is3.conso.com/MonitorTest/version"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/MonitorTest/version"
     is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/MonitorTest/version"
     is3-devportal/version-pro: ""
 spec:
-  type: service
+  type: website
   lifecycle: production
   owner: is3dev
   system: is3
+  consumesApis:
+    - tsp-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: mra-api
+  description: API for Motor de Regles
+spec:
+  type: openapi
+  lifecycle: production
+  owner: is3dev
+  definition:
+    $text: http://2700-is3.conso.com/MotorRegles/api/v3/api-docs
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -122,7 +147,6 @@ metadata:
     - java
     - service
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: "http://localhost:8090/MotorRegles/api/test/version"
     is3-devportal/version-conso: "http://2700-is3.conso.com/MotorRegles/api/test/version"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/MotorRegles/api/test/version"
@@ -133,6 +157,8 @@ spec:
   lifecycle: production
   owner: is3dev
   system: is3
+  providesApis:
+    - mra-api
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -141,9 +167,8 @@ metadata:
   description: NUEVO MRA FRONT - Motor de Regles
   tags:
     - javascript
-    - service
+    - react
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: ""
     is3-devportal/version-conso: "https://2700-is3.conso.com/MotorRegles/version"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/MotorRegles/version"
@@ -154,6 +179,20 @@ spec:
   lifecycle: production
   owner: is3dev
   system: is3
+  consumesApis:
+    - mra-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: tem-api
+  description: API for Eina de Monitoratge
+spec:
+  type: openapi
+  lifecycle: production
+  owner: is3dev
+  definition:
+    $text: http://2700-is3.conso.com/EinaMonitoratge/api/v3/api-docs
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -164,7 +203,6 @@ metadata:
     - java
     - service
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: "http://localhost:8084/EinaMonitoratge/api/test/version"
     is3-devportal/version-conso: "http://2700-is3.conso.com/EinaMonitoratge/api/test/version"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/EinaMonitoratge/api/test/version"
@@ -175,6 +213,8 @@ spec:
   lifecycle: production
   owner: is3dev
   system: is3
+  providesApis:
+    - tem-api
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -183,9 +223,8 @@ metadata:
   description: NUEVO TEM FRONT - Eina de Monitoratge
   tags:
     - javascript
-    - service
+    - react
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: ""
     is3-devportal/version-conso: "https://2700-is3.conso.com/EinaMonitoratge/version"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/EinaMonitoratge/version"
@@ -196,6 +235,8 @@ spec:
   lifecycle: production
   owner: is3dev
   system: is3
+  consumesApis:
+    - tem-api
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -206,7 +247,6 @@ metadata:
     - java
     - service
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: "http://localhost:8092/ppb-v2/api/test/buildVersion"
     is3-devportal/version-conso: "https://2700-is3.conso.com/ppb-v2/api/test/buildVersion"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/ppb-v2/api/test/buildVersion"
@@ -227,7 +267,6 @@ metadata:
     - java
     - service
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: "http://localhost:8091/wsis3/test/buildVersion"
     is3-devportal/version-conso: "http://2700-is3.conso.com/wsis3-v2/api/test/buildVersion"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/wsis3-v2/api/test/buildVersion"
@@ -248,7 +287,6 @@ metadata:
     - java
     - service
   annotations:
-    backstage.io/techdocs-ref: dir:.
     is3-devportal/version-local: "http://localhost:8091/fin-v2/api/test/buildVersion"
     is3-devportal/version-conso: "https://2700-is3.conso.com/fin-v2/api/test/buildVersion"
     is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/fin-v2/api/test/buildVersion"
