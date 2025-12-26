@@ -1,0 +1,303 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: is3
+spec:
+  owner: is3dev
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: is3dev
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: tap-api
+  description: Backend API of TAP
+spec:
+  type: openapi
+  lifecycle: production
+  owner: is3dev
+  definition:
+    $text: https://github.com/freelance-ik-me/tap-backend/edit/main/petstore.yaml
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: tap-backend
+  description: NUEVO TAP BACK - Acces aplicacions
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: "http://localhost:8082/AccesAplicacions/api/test/version"
+    is3-devportal/version-conso: "http://2700-is3.conso.com/AccesAplicacions/api/test/version"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/AccesAplicacions/api/test/version"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/AccesAplicacions/api/test/version"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/AccesAplicacions/api/test/version"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+  providesApis:
+    - tap-api
+  dependsOn:
+    - resource:is3database
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: tap-frontend
+  description: NUEVO TAP FRONT - Acces aplicacions
+  tags:
+    - javascript
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: ""
+    is3-devportal/version-conso: "https://2700-is3.conso.com/AccesAplicacions/version"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/AccesAplicacions/version"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/AccesAplicacions/version"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/AccesAplicacions/version"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: tsp-backend
+  description: NUEVO TSP BACK - Monitor Test
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: "http://localhost:8083/MonitorTest/api/test/version"
+    is3-devportal/version-conso: "http://2700-is3.conso.com/MonitorTest/api/test/version"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/MonitorTest/api/test/version"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/MonitorTest/api/test/version"
+    is3-devportal/version-pro: ""
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: tsp-frontend
+  description: NUEVO TSP FRONT - Monitor Test
+  tags:
+    - javascript
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: ""
+    is3-devportal/version-conso: "https://2700-is3.conso.com/MonitorTest/version"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/MonitorTest/version"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/MonitorTest/version"
+    is3-devportal/version-pro: ""
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: wifis-validator
+  description: NUEVO VALIDADOR WIFIS
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: ""
+    is3-devportal/version-conso: ""
+    is3-devportal/version-int: ""
+    is3-devportal/version-pre: ""
+    is3-devportal/version-pro: ""
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: saml-validator
+  description: NUEVO VALIDADOR SAML
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: ""
+    is3-devportal/version-conso: ""
+    is3-devportal/version-int: ""
+    is3-devportal/version-pre: ""
+    is3-devportal/version-pro: ""
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: mra-backend
+  description: NUEVO MRA BACK - Motor de Regles
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: "http://localhost:8090/MotorRegles/api/test/version"
+    is3-devportal/version-conso: "http://2700-is3.conso.com/MotorRegles/api/test/version"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/MotorRegles/api/test/version"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/MotorRegles/api/test/version"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/MotorRegles/api/test/version"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: mra-frontend
+  description: NUEVO MRA FRONT - Motor de Regles
+  tags:
+    - javascript
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: ""
+    is3-devportal/version-conso: "https://2700-is3.conso.com/MotorRegles/version"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/MotorRegles/version"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/MotorRegles/version"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/MotorRegles/version"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: tem-backend
+  description: NUEVO TEM BACK - Eina de Monitoratge
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: "http://localhost:8084/EinaMonitoratge/api/test/version"
+    is3-devportal/version-conso: "http://2700-is3.conso.com/EinaMonitoratge/api/test/version"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/EinaMonitoratge/api/test/version"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/EinaMonitoratge/api/test/version"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/EinaMonitoratge/api/test/version"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: tem-frontend
+  description: NUEVO TEM FRONT - Eina de Monitoratge
+  tags:
+    - javascript
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: ""
+    is3-devportal/version-conso: "https://2700-is3.conso.com/EinaMonitoratge/version"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/EinaMonitoratge/version"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/EinaMonitoratge/version"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/EinaMonitoratge/version"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ppb
+  description: NUEVO PPB - Plataforma de Processament Batch
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: "http://localhost:8092/ppb-v2/api/test/buildVersion"
+    is3-devportal/version-conso: "https://2700-is3.conso.com/ppb-v2/api/test/buildVersion"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/ppb-v2/api/test/buildVersion"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/ppb-v2/api/test/buildVersion"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/ppb-v2/api/test/buildVersion"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: wsis3
+  description: NUEVO WSIS3 - Servei Web integració IS3
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: "http://localhost:8091/wsis3/test/buildVersion"
+    is3-devportal/version-conso: "http://2700-is3.conso.com/wsis3-v2/api/test/buildVersion"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/wsis3-v2/api/test/buildVersion"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/wsis3-v2/api/test/buildVersion"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/wsis3-v2/api/test/buildVersion"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: fin
+  description: NUEVO FIN - Plataforma Interoperabilitat
+  tags:
+    - java
+    - service
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    is3-devportal/version-local: "http://localhost:8091/fin-v2/api/test/buildVersion"
+    is3-devportal/version-conso: "https://2700-is3.conso.com/fin-v2/api/test/buildVersion"
+    is3-devportal/version-int: "https://integracio.is3.catsalut.intranet.gencat.cat/fin-v2/api/test/buildVersion"
+    is3-devportal/version-pre: "https://preproduccio.is3.catsalut.intranet.gencat.cat/fin-v2/api/test/buildVersion"
+    is3-devportal/version-pro: "https://is3.catsalut.intranet.gencat.cat/fin-v2/api/test/buildVersion"
+spec:
+  type: service
+  lifecycle: production
+  owner: is3dev
+  system: is3
